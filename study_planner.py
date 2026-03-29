@@ -64,12 +64,13 @@ def is_valid_phone(phone):
 def register_user():
     """Register a new user."""
     phone = entry_reg_phone.get().strip()
+    username = entry_reg_username.get().strip()
     email = entry_reg_email.get().strip()
     password = entry_reg_password.get().strip()
     confirm_password = entry_reg_confirm.get().strip()
-    
+
     # Validation
-    if not phone or not email or not password or not confirm_password:
+    if not phone or not username or not email or not password or not confirm_password:
         messagebox.showwarning("Empty Fields", "Please fill all fields!")
         return
     
@@ -80,15 +81,19 @@ def register_user():
     if not is_valid_email(email):
         messagebox.showwarning("Invalid Email", "Please enter a valid email address!")
         return
-    
+
+    if len(username) < 3:
+        messagebox.showwarning("Invalid Username", "Username must be at least 3 characters!")
+        return
+
     if password != confirm_password:
         messagebox.showwarning("Password Mismatch", "Passwords don't match!")
         return
-    
+
     if len(password) < 6:
         messagebox.showwarning("Weak Password", "Password must be at least 6 characters!")
         return
-    
+
     users = load_users()
     
     # Check if user already exists
@@ -98,6 +103,7 @@ def register_user():
     
     # Save new user
     users[phone] = {
+        "username": username,
         "email": email,
         "password": password,
         "created": datetime.now().isoformat()
@@ -131,7 +137,7 @@ def login_user():
     tasks_data = load_tasks()
     tasks = tasks_data.get(current_user, [])
 
-    messagebox.showinfo("Success", f"Welcome back, {users[phone]['email']}! 👋")
+    messagebox.showinfo("Success", f"Welcome back, {users[phone].get('username', users[phone]['email'])}! 👋")
     destroy_login_screen()
     root.deiconify()
 
@@ -219,6 +225,7 @@ def show_profile_window():
 
     tk.Label(win, text="👤 User Profile", font=("Arial", 16, "bold")).pack(pady=10)
     tk.Label(win, text=f"Phone: {current_user}", font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
+    tk.Label(win, text=f"Username: {user.get('username', 'N/A')}", font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
     tk.Label(win, text=f"Email: {user.get('email', 'N/A')}", font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
     tk.Label(win, text=f"Created: {user.get('created', 'N/A')}", font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
 
@@ -231,7 +238,7 @@ def populate_profile_section():
     if current_user:
         users = load_users()
         user = users.get(current_user, {})
-        label_profile_info.config(text=f"Logged in as {user.get('email', 'Unknown')} ({current_user})")
+        label_profile_info.config(text=f"Logged in as {user.get('username', 'Unknown')} ({current_user})")
         button_profile.config(state=tk.NORMAL)
         button_logout.config(state=tk.NORMAL)
     else:
@@ -261,7 +268,15 @@ def show_registration_screen():
                               relief=tk.SOLID, bd=2, bg="white", fg=COLOR_TEXT)
     entry_reg_phone.pack(padx=30, pady=(0, 15), ipady=8)
     entry_reg_phone.focus()
-    
+
+    # Username
+    tk.Label(frame_login_main, text="👤 Username:", font=("Arial", 11), 
+            fg=COLOR_TEXT, bg="white").pack(anchor="w", padx=30, pady=(10, 0))
+    global entry_reg_username
+    entry_reg_username = tk.Entry(frame_login_main, font=("Arial", 11), width=30, 
+                                 relief=tk.SOLID, bd=2, bg="white", fg=COLOR_TEXT)
+    entry_reg_username.pack(padx=30, pady=(0, 15), ipady=8)
+
     # Email
     tk.Label(frame_login_main, text="📧 Email:", font=("Arial", 11), 
             fg=COLOR_TEXT, bg="white").pack(anchor="w", padx=30, pady=(10, 0))
