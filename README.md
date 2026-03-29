@@ -1,5 +1,3 @@
-# study_planner
-Smart AI Trip Planner for personalized travel experiences
 # 📚 Study Planner with Pomodoro Timer
 
 A modern Tkinter-based application that combines task management with the proven Pomodoro Technique for effective studying.
@@ -223,6 +221,10 @@ User accounts are stored securely:
 | Pause Timer | Click "⏸ Pause" button |
 | Reset Timer | Click "⟲ Reset" button |
 | Close App | Click X or use Quit option |
+| Open Profile | Click "👤 Profile" button |
+| Logout | Click "🚪 Logout" button |
+| Change Password | Open profile then click "Change Password" |
+| Apply Custom Timer | Change spinbox values and click "✓ Apply" |
 
 ---
 
@@ -443,12 +445,6 @@ If you encounter issues:
 4. Check that you have write permissions in the directory
 
 ---
-
-**Happy Studying! 🎓**
-
-Remember: Consistency is key. Use the Pomodoro Technique daily to build better study habits!
-
-
 
 **Happy Studying! 🎓**
 
