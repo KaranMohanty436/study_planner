@@ -7,7 +7,7 @@ A modern Tkinter-based application that combines task management with the proven
 ## 🎯 Features
 
 ### 🔐 User Authentication (NEW!)
-- **Registration**: Create account with phone number, email, and password
+- **Registration**: Create account with phone number, username, email, and password
 - **Login**: Secure login with phone and password
 - **Data Security**: User credentials stored in users.json
 - **Unique Accounts**: Prevents duplicate phone number registration
@@ -98,7 +98,8 @@ python3 study_planner.py
 2. Click **"✍️ Create Account"**
 3. Fill in details:
    - 📱 **Phone Number**: 10+ digits (e.g., 9876543210)
-   - 📧 **Email**: Valid email (e.g., user@example.com)
+   - � **Username**: 3+ characters
+   - �📧 **Email**: Valid email (e.g., user@example.com)
    - 🔒 **Password**: Minimum 6 characters
    - 🔒 **Confirm Password**: Must match
 4. Click **"✓ Register"**
