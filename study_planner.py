@@ -9,6 +9,12 @@ import json
 import os
 from datetime import datetime
 
+# Try import winsound for Windows alarm sound
+try:
+    import winsound
+except ImportError:
+    winsound = None
+
 # =============================================
 # Configuration and Constants
 # =============================================
@@ -105,29 +111,134 @@ def login_user():
     """Login user."""
     phone = entry_login_phone.get().strip()
     password = entry_login_password.get().strip()
-    
+
     if not phone or not password:
         messagebox.showwarning("Empty Fields", "Enter phone and password!")
         return
-    
+
     users = load_users()
-    
+
     if phone not in users:
         messagebox.showerror("Error", "User not found! Please register.")
         return
-    
+
     if users[phone]["password"] != password:
         messagebox.showerror("Error", "Wrong password!")
         return
-    
-    # Login successful - save current user and open main app
-    global current_user
+
+    global current_user, tasks, tasks_data
     current_user = phone
-    messagebox.showinfo("Success", f"Welcome back! 👋")
+    tasks_data = load_tasks()
+    tasks = tasks_data.get(current_user, [])
+
+    messagebox.showinfo("Success", f"Welcome back, {users[phone]['email']}! 👋")
     destroy_login_screen()
-    
-    # Show main app window
     root.deiconify()
+
+    populate_profile_section()
+    update_task_display()
+    update_timer_display()
+
+
+def logout_user():
+    """Logout current user and show login window."""
+    global current_user, tasks
+    if messagebox.askyesno("Logout", "Do you want to logout?"):
+        current_user = None
+        tasks = []
+        root.withdraw()
+        show_login_window()
+
+
+def change_password():
+    """Open change password window."""
+    if not current_user:
+        messagebox.showerror("Error", "No user logged in.")
+        return
+
+    def do_change():
+        current_pass = entry_current.get().strip()
+        new_pass = entry_new.get().strip()
+        confirm_new = entry_confirm.get().strip()
+
+        users = load_users()
+        user = users.get(current_user)
+
+        if not user or user['password'] != current_pass:
+            messagebox.showerror("Error", "Current password is wrong.")
+            return
+
+        if len(new_pass) < 6:
+            messagebox.showwarning("Weak Password", "Password must be at least 6 characters!")
+            return
+
+        if new_pass != confirm_new:
+            messagebox.showwarning("Mismatch", "New passwords do not match.")
+            return
+
+        user['password'] = new_pass
+        save_users(users)
+        messagebox.showinfo("Success", "Password changed successfully.")
+        win.destroy()
+
+    win = tk.Toplevel(root)
+    win.title("Change Password")
+    win.geometry("350x260")
+    win.resizable(False, False)
+
+    tk.Label(win, text="🔒 Change Password", font=("Arial", 14, "bold")).pack(pady=10)
+
+    tk.Label(win, text="Current Password:").pack(anchor="w", padx=20, pady=(5, 0))
+    entry_current = tk.Entry(win, show="●", width=30)
+    entry_current.pack(padx=20, pady=5)
+
+    tk.Label(win, text="New Password:").pack(anchor="w", padx=20, pady=(5, 0))
+    entry_new = tk.Entry(win, show="●", width=30)
+    entry_new.pack(padx=20, pady=5)
+
+    tk.Label(win, text="Confirm New Password:").pack(anchor="w", padx=20, pady=(5, 0))
+    entry_confirm = tk.Entry(win, show="●", width=30)
+    entry_confirm.pack(padx=20, pady=5)
+
+    tk.Button(win, text="Update", command=do_change, bg=COLOR_PRIMARY, fg="white", width=20).pack(pady=10)
+
+
+def show_profile_window():
+    """Show user profile details."""
+    if not current_user:
+        messagebox.showerror("Error", "No user logged in")
+        return
+
+    users = load_users()
+    user = users.get(current_user, {})
+
+    win = tk.Toplevel(root)
+    win.title("User Profile")
+    win.geometry("380x220")
+    win.resizable(False, False)
+
+    tk.Label(win, text="👤 User Profile", font=("Arial", 16, "bold")).pack(pady=10)
+    tk.Label(win, text=f"Phone: {current_user}", font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
+    tk.Label(win, text=f"Email: {user.get('email', 'N/A')}", font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
+    tk.Label(win, text=f"Created: {user.get('created', 'N/A')}", font=("Arial", 11)).pack(anchor="w", padx=20, pady=2)
+
+    tk.Button(win, text="Change Password", command=change_password, bg=COLOR_ACCENT, fg="white", width=18).pack(pady=(10, 2))
+    tk.Button(win, text="Close", command=win.destroy, width=12).pack(pady=5)
+
+
+def populate_profile_section():
+    """Populate the profile details area in main window."""
+    if current_user:
+        users = load_users()
+        user = users.get(current_user, {})
+        label_profile_info.config(text=f"Logged in as {user.get('email', 'Unknown')} ({current_user})")
+        button_profile.config(state=tk.NORMAL)
+        button_logout.config(state=tk.NORMAL)
+    else:
+        label_profile_info.config(text="Not logged in")
+        button_profile.config(state=tk.DISABLED)
+        button_logout.config(state=tk.DISABLED)
+
 
 def show_registration_screen():
     """Show registration screen."""
@@ -271,18 +382,33 @@ def load_tasks():
     if os.path.exists(TASKS_FILE):
         try:
             with open(TASKS_FILE, 'r') as file:
-                return json.load(file)
+                data = json.load(file)
+                if isinstance(data, list):
+                    return {"__default__": data}
+                if isinstance(data, dict):
+                    return data
         except (json.JSONDecodeError, IOError):
-            return []
-    return []
+            return {}
+    return {}
 
-def save_tasks(tasks):
+
+def save_tasks(task_data):
     """Save tasks to JSON file."""
     try:
         with open(TASKS_FILE, 'w') as file:
-            json.dump(tasks, file, indent=2)
+            json.dump(task_data, file, indent=2)
     except IOError as e:
         messagebox.showerror("Error", f"Failed to save tasks: {e}")
+
+
+def set_user_tasks(new_tasks):
+    """Set tasks for the current user and save."""
+    global tasks_data, current_user
+    if current_user is None:
+        return
+    tasks_data[current_user] = new_tasks
+    save_tasks(tasks_data)
+
 
 def add_task():
     """Add a new task to the list."""
@@ -301,7 +427,7 @@ def add_task():
     
     # Add to global tasks list and save
     tasks.append(new_task)
-    save_tasks(tasks)
+    set_user_tasks(tasks)
     
     # Clear entry and refresh display
     entry_task.delete(0, tk.END)
@@ -318,7 +444,7 @@ def delete_task():
         
         # Remove task from list and save
         tasks.pop(selected_index[0])
-        save_tasks(tasks)
+        set_user_tasks(tasks)
         update_task_display()
         messagebox.showinfo("Success", "Task deleted successfully!")
     except IndexError:
@@ -335,7 +461,7 @@ def mark_completed():
         # Toggle completion status
         task_index = selected_index[0]
         tasks[task_index]["completed"] = not tasks[task_index]["completed"]
-        save_tasks(tasks)
+        set_user_tasks(tasks)
         update_task_display()
         
         status = "completed" if tasks[task_index]["completed"] else "marked as incomplete"
@@ -365,6 +491,21 @@ def update_task_display():
     
     # Update completed task counter
     label_completed.config(text=f"Completed: {completed_count}/{len(tasks)}")
+
+
+def play_alarm():
+    """Play a sound when timer completes."""
+    try:
+        if winsound:
+            winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
+        else:
+            root.bell()
+    except Exception:
+        try:
+            root.bell()
+        except Exception:
+            pass
+
 
 # =============================================
 # Pomodoro Timer Functions
@@ -426,6 +567,7 @@ def timer_finished():
     global timer_running, remaining_time, is_study_session
     
     timer_running = False
+    play_alarm()
     
     if is_study_session:
         # Switch to break session
@@ -459,7 +601,8 @@ def update_timer_display():
 
 # Global variables
 current_user = None
-tasks = load_tasks()
+tasks_data = load_tasks()
+tasks = []
 timer_running = False
 remaining_time = DEFAULT_STUDY_TIME * 60
 is_study_session = True
@@ -497,6 +640,18 @@ label_title = tk.Label(
     bg=COLOR_PRIMARY
 )
 label_title.pack(pady=15)
+
+frame_profile = tk.Frame(root, bg="white", relief=tk.RAISED, bd=2)
+frame_profile.pack(fill=tk.X, padx=15, pady=(10, 0))
+
+label_profile_info = tk.Label(frame_profile, text="Not logged in", font=("Arial", 11), fg=COLOR_TEXT, bg="white")
+label_profile_info.pack(side=tk.LEFT, padx=12, pady=8)
+
+button_profile = tk.Button(frame_profile, text="👤 Profile", state=tk.DISABLED, command=show_profile_window, bg=COLOR_ACCENT, fg="white", font=("Arial", 9, "bold"), width=10)
+button_profile.pack(side=tk.LEFT, padx=10)
+
+button_logout = tk.Button(frame_profile, text="🚪 Logout", state=tk.DISABLED, command=logout_user, bg=COLOR_WARNING, fg="white", font=("Arial", 9, "bold"), width=10)
+button_logout.pack(side=tk.LEFT, padx=10)
 
 # =============================================
 # Timer Section
@@ -792,7 +947,7 @@ update_timer_display()
 def on_closing():
     """Handle window closing event."""
     if messagebox.askokcancel("Quit", "Do you want to save and quit?"):
-        save_tasks(tasks)
+        set_user_tasks(tasks)
         root.destroy()
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
